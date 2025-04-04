@@ -6,7 +6,7 @@ global $APPLICATION;
 header('Content-Type: text/html; charset=UTF-8');
 
 $APPLICATION->IncludeComponent(
-    'otus.homework:otus.grid',
+    'garage:grid',
     '.default',
-    ['DEAL_ID' => 1]
+    []
 );
