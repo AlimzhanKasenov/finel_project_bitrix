@@ -3,6 +3,17 @@ use Bitrix\Main\Loader;
 use Bitrix\Main\EventManager;
 use RestApi\BusinessProcessHandler;
 
+
+
+
+
+require_once $_SERVER['DOCUMENT_ROOT'].'/local/components/custom/garage.grid/register_tab_deal.php';
+
+
+
+
+
+
 Bitrix\Main\UI\Extension::load(['popup', 'crm.currency', 'time.custom']);
 
 // Подключаем модуль инфоблоков, если нужно
@@ -167,17 +178,4 @@ require_once __DIR__ . '/events/crm_events.php';
 
 
 // Всё ниже для проекта
-
-CJSCore::RegisterExt(
-    'custom_js',
-    [
-        'js'   => '/local/js/custom.js',
-        'css'  => '/local/css/custom.css', // можно убрать, если не нужен
-        'lang' => '/local/js/lang/' . LANGUAGE_ID . '/custom.js.php',
-        'rel'  => ['ajax', 'popup'],
-    ]
-);
-
-if (!\ВАШ_NAMESPACE\Main::inBitrixDir()) {
-    CJSCore::Init('custom_js');
-}
+require_once $_SERVER['DOCUMENT_ROOT'] . '/local/components/custom/garage.grid/register_tab_deal.php';
