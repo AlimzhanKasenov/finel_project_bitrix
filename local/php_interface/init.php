@@ -7,7 +7,7 @@ use RestApi\BusinessProcessHandler;
 
 
 
-require_once $_SERVER['DOCUMENT_ROOT'].'/local/components/custom/garage.grid/register_tab_deal.php';
+
 
 
 
@@ -174,8 +174,3 @@ require_once __DIR__ . '/events/iblock_events.php';
 
 // Подключаем файл с обработчиками CRM (сделки)
 require_once __DIR__ . '/events/crm_events.php';
-
-
-
-// Всё ниже для проекта
-require_once $_SERVER['DOCUMENT_ROOT'] . '/local/components/custom/garage.grid/register_tab_deal.php';
