@@ -8,7 +8,7 @@ Loc::loadMessages(__FILE__);
 
 class otus_homework extends CModule
 {
-    public $MODULE_ID = 'otus.homework';
+    public $MODULE_ID = 'grid';
     public $MODULE_VERSION;
     public $MODULE_VERSION_DATE;
     public $MODULE_NAME;

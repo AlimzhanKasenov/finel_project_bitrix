@@ -7,8 +7,9 @@ use Bitrix\Main\EventManager;
 Loc::loadMessages(__FILE__);
 
 /**
- * Класс garage_mod — основной класс пользовательского модуля Bitrix.
- * Отвечает за установку, удаление, регистрацию обработчиков событий и компонентов.
+ * Основной класс пользовательского модуля garage.mod
+ *
+ * Отвечает за установку, удаление, регистрацию событий и компонентов.
  */
 class garage_mod extends CModule
 {
@@ -18,7 +19,7 @@ class garage_mod extends CModule
     /** @var string Версия модуля */
     public $MODULE_VERSION;
 
-    /** @var string Дата версии модуля */
+    /** @var string Дата версии */
     public $MODULE_VERSION_DATE;
 
     /** @var string Название модуля */
@@ -27,20 +28,21 @@ class garage_mod extends CModule
     /** @var string Описание модуля */
     public $MODULE_DESCRIPTION;
 
-    /** @var string Имя партнёра */
+    /** @var string Название партнёра */
     public $PARTNER_NAME;
 
     /** @var string Сайт партнёра */
     public $PARTNER_URI;
 
     /**
-     * Конструктор модуля.
-     * Загружает данные из файла version.php и языковых файлов.
+     * Конструктор.
+     * Загружает информацию из version.php и языковых файлов.
      */
     public function __construct()
     {
         $arModuleVersion = [];
         include(__DIR__ . '/version.php');
+
         $this->MODULE_VERSION = $arModuleVersion['VERSION'];
         $this->MODULE_VERSION_DATE = $arModuleVersion['VERSION_DATE'];
         $this->MODULE_NAME = Loc::getMessage('OTUS_HOMEWORK_MODULE_NAME');
@@ -50,9 +52,9 @@ class garage_mod extends CModule
     }
 
     /**
-     * Проверяет, соответствует ли версия ядра требованиям D7.
+     * Проверка, поддерживается ли D7.
      *
-     * @return bool true, если версия ядра >= 20.00.00
+     * @return bool
      */
     public function isVersionD7()
     {
@@ -60,13 +62,10 @@ class garage_mod extends CModule
     }
 
     /**
-     * Устанавливает модуль:
-     * - Проверяет версию ядра
-     * - Регистрирует модуль
-     * - Копирует компоненты
-     * - Регистрирует события
+     * Установка модуля: регистрация, копирование файлов, события.
      *
      * @return bool|null
+     * @throws \Exception
      */
     public function DoInstall()
     {
@@ -78,16 +77,14 @@ class garage_mod extends CModule
         }
 
         \Bitrix\Main\ModuleManager::registerModule($this->MODULE_ID);
-
         $this->installFiles();
         $this->InstallEvents();
     }
 
     /**
-     * Удаляет модуль:
-     * - Удаляет события
-     * - Удаляет компоненты
-     * - Разрегистрирует модуль
+     * Деинсталляция модуля: удаление событий, файлов и снятие регистрации.
+     *
+     * @throws \Bitrix\Main\IO\InvalidPathException
      */
     public function DoUninstall()
     {
@@ -97,40 +94,44 @@ class garage_mod extends CModule
     }
 
     /**
-     * Копирует пользовательские компоненты из модуля в local/components.
+     * Копирует компонент в local/components/custom/grid
      *
-     * @throws \Exception если не найдена папка с компонентами.
+     * @throws \Exception
      */
     public function installFiles()
     {
-        $source = $this->GetPath() . '/components';
-        $destination = $_SERVER['DOCUMENT_ROOT'] . '/local/components';
+        $source = $this->GetPath() . '/components/grid';
+        $destination = Application::getDocumentRoot() . '/local/components/custom/grid';
 
         if (!\Bitrix\Main\IO\Directory::isDirectoryExists($source)) {
-            throw new \Exception('Ошибка: исходная папка с компонентами не найдена.');
+            throw new \Exception('Ошибка: исходная папка с компонентом не найдена.');
         }
 
-        CopyDirFiles($source, $destination, true, true);
+        \Bitrix\Main\IO\Directory::createDirectory($destination);
+
+        if (!CopyDirFiles($source, $destination, true, true)) {
+            throw new \Exception('Ошибка копирования компонента.');
+        }
     }
 
     /**
-     * Удаляет пользовательские компоненты модуля из local/components.
+     * Удаляет компонент из local/components/custom/grid
      */
     public function uninstallFiles()
     {
-        $componentPath = $_SERVER['DOCUMENT_ROOT'] . '/local/components/garage';
+        $componentPath = Application::getDocumentRoot() . '/local/components/custom/grid';
+
         if (\Bitrix\Main\IO\Directory::isDirectoryExists($componentPath)) {
             \Bitrix\Main\IO\Directory::deleteDirectory($componentPath);
         }
     }
 
     /**
-     * Регистрирует обработчики событий модуля (например, вкладка в CRM).
+     * Регистрирует обработчики событий модуля.
      */
     public function InstallEvents()
     {
-        $eventManager = EventManager::getInstance();
-        $eventManager->registerEventHandler(
+        EventManager::getInstance()->registerEventHandler(
             'crm',
             'onEntityDetailsTabsInitialized',
             $this->MODULE_ID,
@@ -144,8 +145,7 @@ class garage_mod extends CModule
      */
     public function UnInstallEvents()
     {
-        $eventManager = EventManager::getInstance();
-        $eventManager->unRegisterEventHandler(
+        EventManager::getInstance()->unRegisterEventHandler(
             'crm',
             'onEntityDetailsTabsInitialized',
             $this->MODULE_ID,
@@ -155,10 +155,10 @@ class garage_mod extends CModule
     }
 
     /**
-     * Возвращает путь к директории модуля.
+     * Возвращает путь до папки модуля.
      *
-     * @param bool $notDocumentRoot Если true — путь без DOCUMENT_ROOT.
-     * @return string Абсолютный или относительный путь к папке модуля.
+     * @param bool $notDocumentRoot Если true — путь без DOCUMENT_ROOT
+     * @return string
      */
     public function GetPath($notDocumentRoot = false)
     {

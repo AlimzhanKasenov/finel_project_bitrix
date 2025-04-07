@@ -1,83 +1,131 @@
 <?php
+
+namespace Custom\Grid;
+
+use Bitrix\Main\Loader;
+use Bitrix\Main\Engine\Contract\Controllerable;
+use Bitrix\Crm\Service\Container;
+use Bitrix\Main\Type\DateTime;
+
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
 /**
- * Компонент OtusGridComponent
- * Отвечает за выборку элементов из инфоблока и вывод названий связанных процедур.
+ * Компонент custom:grid
+ *
+ * Отображает список автомобилей, связанных с контактом,
+ * и по клику загружает последние 5 сделок, связанных с автомобилем.
  */
-class OtusGridComponent extends CBitrixComponent
+class Grid extends \CBitrixComponent implements Controllerable
 {
     /**
-     * Основной метод компонента.
-     * Выполняет:
-     * - Подключение модуля инфоблоков
-     * - Получение элементов из инфоблока ID 16
-     * - Сбор ID процедур и получение их названий из инфоблока ID 17
-     * - Формирование arResult для шаблона компонента
+     * Объявление ajax-действий компонента.
      *
-     * @return void
+     * @return array
+     */
+    public function configureActions()
+    {
+        return [
+            'getDealsByCar' => [
+                'prefilters' => []
+            ]
+        ];
+    }
+
+    /**
+     * Ajax-действие: получить последние 5 сделок, связанных с автомобилем.
+     *
+     * @param int $carId ID смарт-процесса (автомобиля)
+     * @return array Массив сделок с полями ID, DATE, WORK_TYPE, PRICE
+     * @throws \Bitrix\Main\SystemException
+     */
+    public function getDealsByCarAction($carId)
+    {
+        if (!Loader::includeModule('crm')) {
+            throw new \Bitrix\Main\SystemException('CRM module not loaded');
+        }
+
+        $carId = (int)$carId;
+        $result = [];
+
+        // Получаем фабрику сделок (тип 2)
+        $factory = Container::getInstance()->getFactory(2);
+        if (!$factory) {
+            throw new \Bitrix\Main\SystemException('Factory for deals not found');
+        }
+
+        // Получаем сделки, связанные с автомобилем
+        $items = $factory->getItems([
+            'filter' => ['=PARENT_ID_1040' => $carId],
+            'select' => ['ID', 'DATE_CREATE', 'UF_CRM_1743663540837', 'OPPORTUNITY'],
+            'order' => ['ID' => 'DESC'],
+            'limit' => 5
+        ]);
+
+        foreach ($items as $item) {
+            $date = $item->get('DATE_CREATE');
+            $dateFormatted = ($date instanceof DateTime)
+                ? $date->format("d.m.Y H:i:s")
+                : (string)$date;
+
+            $result[] = [
+                'ID' => $item->getId(),
+                'DATE' => $dateFormatted,
+                'WORK_TYPE' => $item->get('UF_CRM_1743663540837') ?? '',
+                'PRICE' => $item->get('OPPORTUNITY') ?? '',
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Основной метод компонента — загружает список автомобилей контакта.
      */
     public function executeComponent()
     {
-        if (!\Bitrix\Main\Loader::includeModule('iblock')) {
-            ShowError('Модуль Инфоблоки не подключен');
+        if (!Loader::includeModule('crm')) {
+            ShowError("Модуль CRM не подключен");
             return;
         }
 
-        // Получение активных элементов из инфоблока ID 16
-        $filter = [
-            'IBLOCK_ID' => 16,
-            'ACTIVE' => 'Y',
-        ];
-
-        $select = ['ID', 'NAME', 'PROPERTY_PROTSEDURY'];
-        $res = \CIBlockElement::GetList([], $filter, false, false, $select);
-
-        $this->arResult['ITEMS'] = [];
-        $procedureIds = [];
-
-        while ($item = $res->GetNext()) {
-            // Собираем ID процедур
-            if (is_array($item['PROPERTY_PROTSEDURY_VALUE'])) {
-                $item['PROPERTY_PROTSEDURY_VALUES'] = $item['PROPERTY_PROTSEDURY_VALUE'];
-                $procedureIds = array_merge($procedureIds, $item['PROPERTY_PROTSEDURY_VALUE']);
-            } else {
-                $item['PROPERTY_PROTSEDURY_VALUES'] = [$item['PROPERTY_PROTSEDURY_VALUE']];
-                $procedureIds[] = $item['PROPERTY_PROTSEDURY_VALUE'];
-            }
-
-            $this->arResult['ITEMS'][$item['ID']]['NAME'] = $item['NAME'];
-            $this->arResult['ITEMS'][$item['ID']]['PROCEDURES'] = array_merge(
-                $this->arResult['ITEMS'][$item['ID']]['PROCEDURES'] ?? [],
-                $item['PROPERTY_PROTSEDURY_VALUES']
-            );
+        $contactId = (int)($this->arParams['CONTACT_ID'] ?? $_GET['contactId'] ?? 0);
+        if (!$contactId) {
+            ShowError("Не передан ID контакта");
+            return;
         }
 
-        // Убираем дубликаты ID процедур
-        $procedureIds = array_unique($procedureIds);
-
-        // Получаем названия процедур из инфоблока ID 17
-        $procedureNames = [];
-        if (!empty($procedureIds)) {
-            $procedureRes = \CIBlockElement::GetList(
-                [],
-                ['IBLOCK_ID' => 17, 'ID' => $procedureIds],
-                false,
-                false,
-                ['ID', 'NAME']
-            );
-
-            while ($proc = $procedureRes->GetNext()) {
-                $procedureNames[$proc['ID']] = $proc['NAME'];
-            }
+        $factory = Container::getInstance()->getFactory(1040); // Фабрика смарт-процесса "Автомобили"
+        if (!$factory) {
+            ShowError("Смарт-процесс не найден");
+            return;
         }
 
-        // Заменяем ID процедур на названия
-        foreach ($this->arResult['ITEMS'] as &$item) {
-            $item['PROCEDURES'] = array_map(
-                fn($id) => $procedureNames[$id] ?? "ID: $id",
-                $item['PROCEDURES']
-            );
+        // Получаем автомобили, связанные с контактом
+        $items = $factory->getItems([
+            'filter' => ['=CONTACT_ID' => $contactId],
+            'select' => [
+                'ID',
+                'TITLE',
+                'UF_CRM_4_1742986554', // Модель
+                'UF_CRM_4_1742986643', // Год
+                'UF_CRM_4_1742986678', // Цвет
+                'UF_CRM_4_1742986687', // Пробег
+                'CONTACT_ID'
+            ],
+            'order' => ['ID' => 'DESC']
+        ]);
+
+        $this->arResult['CARS'] = [];
+
+        foreach ($items as $item) {
+            $this->arResult['CARS'][] = [
+                'ID' => $item->getId(),
+                'TITLE' => $item->getTitle(),
+                'MODEL' => $item->get('UF_CRM_4_1742986554'),
+                'YEAR' => $item->get('UF_CRM_4_1742986643'),
+                'COLOR' => $item->get('UF_CRM_4_1742986678'),
+                'MILEAGE' => $item->get('UF_CRM_4_1742986687'),
+            ];
         }
 
         $this->includeComponentTemplate();

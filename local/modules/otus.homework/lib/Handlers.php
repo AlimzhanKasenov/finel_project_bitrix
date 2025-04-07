@@ -29,7 +29,7 @@ class Handlers
             'id' => 'vrachi',
             'name' => 'Информация из инфоблока',
             'loader' => [
-                'serviceUrl' => '/local/components/otus.homework/otus.grid/lazyload.ajax.php'
+                'serviceUrl' => '/local/components/grid/otus.grid/lazyload.ajax.php'
                     . '?dealId=' . $dealId
                     . '&site=' . \SITE_ID
                     . '&' . bitrix_sessid_get(),

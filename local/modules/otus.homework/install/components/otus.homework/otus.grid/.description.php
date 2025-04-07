@@ -5,7 +5,7 @@ $arComponentDescription = [
     "NAME"        => "otus.grid",
     "DESCRIPTION" => "Компонент для отображения данных из инфоблока",
     "PATH"        => [
-        "ID"   => "otus.homework",
+        "ID"   => "grid",
         "NAME" => "Домашняя работа Otus"
     ]
 ];

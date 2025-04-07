@@ -1,19 +1,17 @@
 <?php
 /**
- * Стартовый скрипт для lazy-загрузки компонента `garage:grid` во вкладке CRM.
- * Используется во вкладке "Гараж", добавляемой в карточку контакта.
+ * Подключение компонента custom:grid в режиме lazyload (AJAX)
+ * Используется для загрузки вкладки "Гараж" в карточке контакта.
  */
 
-require_once $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.php';
+require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/modules/main/include/prolog_before.php");
 
-global $APPLICATION;
-
-// Устанавливаем корректную кодировку для вывода HTML
-header('Content-Type: text/html; charset=UTF-8');
-
-// Подключение компонента garage:grid без параметров (заполняются внутри компонента)
+// Подключаем компонент custom:grid с шаблоном .default
+// Передаём ID контакта из параметра запроса
 $APPLICATION->IncludeComponent(
-    'garage:grid', // Название компонента
-    '.default',    // Шаблон компонента
-    []             // Параметры (при необходимости можно передать CONTACT_ID, DEAL_ID и т.д.)
+    'custom:grid',
+    '.default',
+    [
+        'CONTACT_ID' => (int)($_GET['contactId'] ?? 0),
+    ]
 );
