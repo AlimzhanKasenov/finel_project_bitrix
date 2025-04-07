@@ -3,6 +3,9 @@ use Bitrix\Main\Loader;
 use Bitrix\Main\EventManager;
 use RestApi\BusinessProcessHandler;
 
+
+
+
 //Подключение файла который добавляет кастомный тип поля
 Loader::registerAutoLoadClasses(null, [
     'CustomProperty\\CatalogElementSelector' => '/local/php_interface/classes/CustomProperty/CatalogElementSelector.php',
@@ -13,6 +16,16 @@ Loader::registerAutoLoadClasses(null, [
     'OnIBlockPropertyBuildList',
     ['CustomProperty\\CatalogElementSelector', 'GetUserTypeDescription']
 );
+
+//Создание функции и регистрация агента
+
+
+
+
+
+
+
+
 
 
 
