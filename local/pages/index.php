@@ -2,19 +2,26 @@
 
 use Bitrix\Main\Loader;
 
-// Лог-файл
+/**
+ * Скрипт обновления остатков товаров и запуска бизнес-процесса при нулевом остатке.
+ * Работает с инфоблоком каталога, получает все товары из заданного раздела,
+ * для каждого SKU устанавливает случайное количество от 0 до 3.
+ * Если количество = 0 — создаёт элемент в другом инфоблоке и запускает бизнес-процесс.
+ */
+
+// Путь к лог-файлу
 $logFile = __DIR__ . '/cron_log.txt';
 
 // Логируем запуск
 file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] index.php стартовал\n", FILE_APPEND);
 
-// Проверяем, подключено ли ядро Bitrix
+// Проверка подключения ядра Bitrix
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) {
     file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] Ядро Bitrix не подключено! Скрипт остановлен.\n", FILE_APPEND);
     return;
 }
 
-// Подключаем модули
+// Подключение необходимых модулей
 if (
     !Loader::includeModule("iblock") ||
     !Loader::includeModule("catalog") ||
@@ -24,14 +31,14 @@ if (
     return;
 }
 
-// Константы
-$iblockId = 14; // Каталог
-$sectionId = 13;
-$targetIblockId = 30;
-$bpId = 28;
-$authorId = 15;
+// Константы конфигурации
+$iblockId = 14;           // ID инфоблока каталога
+$sectionId = 13;          // ID раздела товаров
+$targetIblockId = 30;     // ID инфоблока процессов
+$bpId = 28;               // ID бизнес-процесса
+$authorId = 15;           // ID пользователя, от имени которого создаётся элемент
 
-// Получаем элементы
+// Получение элементов из каталога
 $res = CIBlockElement::GetList(
     [],
     [
@@ -45,11 +52,12 @@ $res = CIBlockElement::GetList(
     ['ID', 'NAME']
 );
 
-// Обработка
+// Обработка каждого элемента каталога
 while ($element = $res->GetNext()) {
     $productId = $element['ID'];
     $productName = $element['NAME'];
 
+    // Получаем SKU (предложения)
     $skuItems = \CCatalogSKU::getOffersList(
         [$productId],
         $iblockId,
@@ -73,10 +81,11 @@ while ($element = $res->GetNext()) {
 
             $randomQuantity = intval(trim($randomQuantity));
 
-            // Обновляем остаток
+            // Обновляем остаток товара
             $updateResult = \Bitrix\Catalog\Model\Product::update($skuId, ['QUANTITY' => $randomQuantity]);
 
             if ($updateResult->isSuccess()) {
+                // Если остаток 0 — создаём элемент и запускаем БП
                 if ($randomQuantity === 0) {
                     $el = new CIBlockElement;
                     $arFields = [
@@ -93,7 +102,8 @@ while ($element = $res->GetNext()) {
                         CBPDocument::StartWorkflow(
                             $bpId,
                             ["lists", "Bitrix\Lists\BizprocDocumentLists", $newElementId],
-                            [], $errors
+                            [],
+                            $errors
                         );
 
                         file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] Создан элемент ID {$newElementId} и запущен БП\n", FILE_APPEND);
@@ -105,7 +115,7 @@ while ($element = $res->GetNext()) {
                 file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] Ошибка обновления SKU ID {$skuId}\n", FILE_APPEND);
             }
 
-            // Задержка между запросами — 0.3 секунды
+            // Задержка между SKU
             usleep(300000);
         }
     }
