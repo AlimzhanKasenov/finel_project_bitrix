@@ -5,8 +5,8 @@ use Bitrix\Main\Loader;
 /**
  * Скрипт обновления остатков товаров и запуска бизнес-процесса при нулевом остатке.
  * Работает с инфоблоком каталога, получает все товары из заданного раздела,
- * для каждого SKU устанавливает случайное количество от 0 до 3.
- * Если количество = 0 — создаёт элемент в другом инфоблоке и запускает бизнес-процесс.
+ * для каждого SKU прибавляет случайное количество от 0 до 3 к текущему остатку.
+ * Если итоговый остаток = 0 — создаёт элемент в другом инфоблоке и запускает бизнес-процесс.
  */
 
 // Путь к лог-файлу
@@ -81,12 +81,21 @@ while ($element = $res->GetNext()) {
 
             $randomQuantity = intval(trim($randomQuantity));
 
-            // Обновляем остаток товара
-            $updateResult = \Bitrix\Catalog\Model\Product::update($skuId, ['QUANTITY' => $randomQuantity]);
+            // Получаем текущий остаток
+            $productData = \Bitrix\Catalog\ProductTable::getRowById($skuId);
+            $currentQuantity = (float)($productData['QUANTITY'] ?? 0);
+
+            // Вычисляем новое количество
+            $newQuantity = $currentQuantity + $randomQuantity;
+
+            // Обновляем остаток
+            $updateResult = \Bitrix\Catalog\Model\Product::update($skuId, ['QUANTITY' => $newQuantity]);
 
             if ($updateResult->isSuccess()) {
-                // Если остаток 0 — создаём элемент и запускаем БП
-                if ($randomQuantity === 0) {
+                file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] SKU {$skuId}: было {$currentQuantity}, прибавили {$randomQuantity}, стало {$newQuantity}\n", FILE_APPEND);
+
+                // Если новый остаток = 0 — создаём элемент и запускаем БП
+                if ($newQuantity === 0) {
                     $el = new CIBlockElement;
                     $arFields = [
                         "IBLOCK_ID" => $targetIblockId,
@@ -94,7 +103,7 @@ while ($element = $res->GetNext()) {
                         "CREATED_BY" => $authorId,
                         "PROPERTY_VALUES" => [
                             "KOLICHESTVO" => 10,
-                            "ELEMENT_KATALOGA_TOVAROV" => $productId
+                            "ELEMENT_KATALOGA_TOVAROV" => $skuId // <-- ВАЖНО: теперь используем ID вариации!
                         ]
                     ];
 
@@ -112,7 +121,7 @@ while ($element = $res->GetNext()) {
                     }
                 }
             } else {
-                file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] Ошибка обновления SKU ID {$skuId}\n", FILE_APPEND);
+                file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] Ошибка обновления SKU ID {$skuId}: " . implode('; ', $updateResult->getErrorMessages()) . "\n", FILE_APPEND);
             }
 
             // Задержка между SKU
