@@ -20,7 +20,8 @@ Loader::registerAutoLoadClasses(null, [
 //Создание функции и регистрация агента
 require_once($_SERVER["DOCUMENT_ROOT"] . "/local/php_interface/include/agents.php");
 
-
+// Подключение обработчиков сделок
+require_once($_SERVER['DOCUMENT_ROOT'] . '/local/php_interface/include/deal_handlers.php');
 
 
 
