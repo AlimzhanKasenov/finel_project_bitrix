@@ -133,4 +133,4 @@ class DealHandlers
  * Регистрация обработчиков события перед созданием и обновлением сделки.
  */
 AddEventHandler('crm', 'OnBeforeCrmDealAdd',    ['DealHandlers', 'onBefore']);
-AddEventHandler('crm', 'OnBeforeCrmDealUpdate', ['DealHandlers', 'onBefore']);
+//AddEventHandler('crm', 'OnBeforeCrmDealUpdate', ['DealHandlers', 'onBefore']);
